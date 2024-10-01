@@ -1,9 +1,13 @@
 #include "raylib.h"
 #include "raymath.h"
 
-#include "resource_dir.h"	// utility header for SearchAndSetResourceDir
+//#include "resource_dir.h"	// uncommented when using resource folder
 
-#include <stdio.h>
+#include "../resources/wavmeow.h"
+#include "../resources/imsillywalk.h"
+#include "../resources/imsillysleep.h"
+
+//#include <stdio.h>
 
 enum Status
 {
@@ -86,8 +90,7 @@ int main()
 	int eepytext = 0;
 	int eepytexttick = 0;
 	// animation
-    int animframes = 0;
-    unsigned int nextframedataoffset = 0;
+    int animframes = 25;
     int currentanimframe = 0;
     int framedelay = 1;
     int framecounter = 0;
@@ -113,13 +116,53 @@ int main()
 	Vector2 position = (Vector2){wx, wy};
 	Vector2 target = (Vector2){0, 0};
 
-	// resource stuff
+	// load files from resource folder (comment out for embedded)
+	/*
 	SearchAndSetResourceDir("resources");
 	Wave wavmeow = LoadWave("meow.wav");
-	Sound sndmeow = LoadSoundFromWave(wavmeow);
-	Image imsillywalk = LoadImageAnim("boogie.gif", &animframes);
-	Texture2D texsillywalk = LoadTextureFromImage(imsillywalk);
+	Image imsillywalk = LoadImage("boogie.png");
 	Image imsillysleep = LoadImage("sleep.png");
+	*/
+
+	// export as code (this should never be uncommended unless files need to be regenerated)
+	/*
+	ExportWaveAsCode(wavmeow, "wavmeow.h");
+	ExportImageAsCode(imsillywalk, "imsillywalk.h");
+	ExportImageAsCode(imsillysleep, "imsillysleep.h");
+	*/
+
+	// embedded assets
+    Wave wavmeow = {
+        .data = WAVMEOW_DATA,
+        .frameCount = WAVMEOW_FRAME_COUNT,
+        .sampleRate = WAVMEOW_SAMPLE_RATE,
+        .sampleSize = WAVMEOW_SAMPLE_SIZE,
+        .channels = WAVMEOW_CHANNELS
+    };
+
+    Image imsillywalk = {
+        .data = IMSILLYWALK_DATA,
+        .width = IMSILLYWALK_WIDTH,
+        .height = IMSILLYWALK_HEIGHT,
+        .format = IMSILLYWALK_FORMAT,
+        .mipmaps = 1
+    };
+
+    Image imsillysleep = {
+        .data = IMSILLYSLEEP_DATA,
+        .width = IMSILLYSLEEP_WIDTH,
+        .height = IMSILLYSLEEP_HEIGHT,
+        .format = IMSILLYSLEEP_FORMAT,
+        .mipmaps = 1
+    };
+
+	// load assets
+	Sound sndmeow = LoadSoundFromWave(wavmeow);
+	Texture2D texsillywalk = LoadTextureFromImage(imsillywalk);
+	Texture2D texsillysleep = LoadTextureFromImage(imsillysleep);
+
+	Vector2 sillypos = {1.0f, 9.0f};
+	Rectangle framerec = {0.0f, 0.0f, (float)texsillywalk.width/25, (float)texsillywalk.height};
 
 	// setup tick hit values
 	tickhit = GetRandomValue(0, 60);
@@ -130,17 +173,14 @@ int main()
 	{
 		// walk animation
 		framecounter++;
-        if (framecounter >= framedelay)
-        {
-            currentanimframe++;
-            if (currentanimframe >= animframes) currentanimframe = 0;
-            nextframedataoffset = imsillywalk.width*imsillywalk.height*4*currentanimframe;
-            UpdateTexture(texsillywalk, ((unsigned char *)imsillywalk.data) + nextframedataoffset);
-            framecounter = 0;
-        }
-
-		if (eepy == true)
-			UpdateTexture(texsillywalk, ((unsigned char *)imsillysleep.data));
+		if (framecounter >= framedelay)
+		{
+			currentanimframe++;
+			if (currentanimframe >= animframes) currentanimframe = 0;
+			framerec.x = (float)currentanimframe*(float)texsillywalk.width/25;
+			UpdateTexture(texsillywalk, ((unsigned char *)imsillywalk.data));
+			framecounter = 0;
+		}
 
 		// brain tick system
 		if (status != Sleeping)
@@ -197,15 +237,18 @@ int main()
 		BeginDrawing();
 		//ClearBackground(GRAY);
 		ClearBackground(BLANK);
-		DrawTexture(texsillywalk, 1, 9, WHITE);
+		if (eepy == false)
+			DrawTextureRec(texsillywalk, framerec, sillypos, WHITE);
+		else
+			DrawTexture(texsillysleep, 1, 9, WHITE);
 		if (domeow == true)
 			DrawText("MEOW", 0, 0, 10, (Color){255, 255, 255, meowalpha});
 		if (eepy == true)
 		{
-			eepytexttick += 1;
+			eepytexttick++;
 			if (eepytexttick >= 60)
 			{
-				eepytext += 1;
+				eepytext++;
 				eepytexttick = 0;
 			}
 
@@ -225,6 +268,7 @@ int main()
 
 	// cleanup
 	UnloadTexture(texsillywalk);
+	UnloadTexture(texsillysleep);
 	UnloadImage(imsillywalk);
 	UnloadImage(imsillysleep);
 	UnloadWave(wavmeow);
