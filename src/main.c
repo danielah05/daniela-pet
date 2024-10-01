@@ -8,7 +8,8 @@
 enum Status
 {
 	Idle,
-	Walking
+	Walking,
+	Sleeping
 };
 
 void meowanim(int *meowalpha, bool *domeow)
@@ -35,6 +36,30 @@ void movetopoint(Vector2 *position, Vector2 *target, int *mw, int *mh, bool *mov
 	}
 }
 
+void eepysleepy(bool *eepy, int *eepychoose, int *status, int *eepytime, int *eepytick)
+{
+	if (*eepy == false)
+	{
+		*eepychoose = GetRandomValue(0, 200);
+		if (*eepychoose >= 195)
+		{
+			*eepytime = GetRandomValue(5400, 16200); // 1:30 - 4:30 minutes
+			*eepy = true;
+		}
+		else
+			*status = Idle;
+	}
+	else
+	{
+		*eepytick += 1;
+		if (*eepytick >= *eepytime)
+		{
+			*eepytick = 0;
+			*eepy = false;
+		}
+	}
+}
+
 int main()
 {
 	// monitor width, height
@@ -54,6 +79,12 @@ int main()
 	// daniela status stuff
 	int status = 0;
 	bool move = false;
+	bool eepy = false;
+	int eepychoose = 0;
+	int eepytime = 0;
+	int eepytick = 0;
+	int eepytext = 0;
+	int eepytexttick = 0;
 	// animation
     int animframes = 0;
     unsigned int nextframedataoffset = 0;
@@ -84,9 +115,11 @@ int main()
 
 	// resource stuff
 	SearchAndSetResourceDir("resources");
-	Sound sndmeow = LoadSound("meow.wav");
+	Wave wavmeow = LoadWave("meow.wav");
+	Sound sndmeow = LoadSoundFromWave(wavmeow);
 	Image imsillywalk = LoadImageAnim("boogie.gif", &animframes);
 	Texture2D texsillywalk = LoadTextureFromImage(imsillywalk);
+	Image imsillysleep = LoadImage("sleep.png");
 
 	// setup tick hit values
 	tickhit = GetRandomValue(0, 60);
@@ -106,8 +139,12 @@ int main()
             framecounter = 0;
         }
 
+		if (eepy == true)
+			UpdateTexture(texsillywalk, ((unsigned char *)imsillysleep.data));
+
 		// brain tick system
-		tick++;
+		if (status != Sleeping)
+			tick++;
 		if (tick >= tickhit)
 		{
 			if (status == Walking)
@@ -117,13 +154,13 @@ int main()
 			}
 			else
 			{
-				status = GetRandomValue(0, 1);
+				status = GetRandomValue(0, 2);
 			}
 			tick = 0;
 			tickhit = GetRandomValue(0, 600);
 		}
 
-		// daniela status (walk or idle)
+		// daniela status
 		switch (status)
 		{
 			case Idle:
@@ -131,10 +168,14 @@ int main()
 			case Walking:
 				movetopoint(&position, &target, &mw, &mh, &move);
 				break;
+			case Sleeping:
+				eepysleepy(&eepy, &eepychoose, &status, &eepytime, &eepytick);
+				break;
 		}
 
 		// meow tick system
-		meowtick++;
+		if (status != Sleeping)
+			meowtick++;
 		if (meowtick >= meowtickhit)
 		{
 			PlaySound(sndmeow);
@@ -159,6 +200,25 @@ int main()
 		DrawTexture(texsillywalk, 1, 9, WHITE);
 		if (domeow == true)
 			DrawText("MEOW", 0, 0, 10, (Color){255, 255, 255, meowalpha});
+		if (eepy == true)
+		{
+			eepytexttick += 1;
+			if (eepytexttick >= 60)
+			{
+				eepytext += 1;
+				eepytexttick = 0;
+			}
+
+			if (eepytext == 1)
+				DrawText("z", 16, 2, 10, (Color){255, 255, 255, 255});
+			if (eepytext == 2)
+			{
+				DrawText("z", 16, 2, 10, (Color){255, 255, 255, 255});
+				DrawText("z", 22, -3, 10, (Color){255, 255, 255, 255});
+			}
+			if (eepytext >= 3)
+				eepytext = 0;
+		}
 
 		EndDrawing();
 	}
@@ -166,6 +226,8 @@ int main()
 	// cleanup
 	UnloadTexture(texsillywalk);
 	UnloadImage(imsillywalk);
+	UnloadImage(imsillysleep);
+	UnloadWave(wavmeow);
 	UnloadSound(sndmeow);
 	CloseAudioDevice();
 	CloseWindow();
